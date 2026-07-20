@@ -184,6 +184,10 @@ async function reserveButtonClicked() {
         return;
     }
 
+    const reserveButton = document.getElementById("reserveButton");
+    reserveButton.disabled = true;
+    reserveButton.textContent = "予約しています…";
+
     try {
         const profile = await liff.getProfile();
 
@@ -206,11 +210,26 @@ async function reserveButtonClicked() {
             throw new Error("HTTP status: " + response.status);
         }
 
-        alert("予約データを送信しました！");
-
+        reserveButton.textContent = "予約完了！";
+        
+        if (liff.isInClient()) {
+            setTimeout(function () {
+                liff.closeWindow();
+            }, 800);
+        } else {
+            document.getElementById("calendar").style.display = "none";
+            document.getElementById("times").style.display = "none";
+            reserveButton.style.display = "none";
+        
+            document.getElementById("name").textContent =
+                "予約を受け付けました。画面を閉じてください。";
+        }
     } catch (error) {
         console.error("Reservation error:", error);
         alert("送信に失敗しました: " + error.message);
+
+        reserveButton.disabled = false;
+        reserveButton.textContent = "予約する";
     }
 }
 
