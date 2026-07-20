@@ -1,0 +1,95 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+body {
+    font-family: sans-serif;
+    padding: 16px;
+}
+
+#calendar {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
+}
+
+/* FullCalendarをスマホ幅に収める */
+.fc {
+    width: 100%;
+    max-width: 100%;
+    font-size: 14px;
+}
+
+.fc .fc-toolbar-title {
+    font-size: 24px;
+}
+
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+    padding: 5px;
+}
+
+.fc .fc-daygrid-day-frame {
+    min-height: 55px;
+}
+
+#times {
+    margin-top: 20px;
+}
+
+.timeButton {
+    display: block;
+    width: 100%;
+    height: 45px;
+    margin-bottom: 10px;
+    border: 1px solid #00b900;
+    border-radius: 10px;
+    background: white;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.selected {
+    color: white;
+    background: #00b900;
+}
+
+#reserveButton {
+    width: 100%;
+    height: 55px;
+    margin-top: 25px;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    background: #06c755;
+    font-size: 20px;
+}
+
+/* 選択した日付 */
+.fc-day-selected {
+    background-color: #06C755 !important;
+}
+
+.fc-day-selected .fc-daygrid-day-number {
+    color: white !important;
+    font-weight: bold;
+}
+
+.timeButton.reserved {
+    background-color: #cccccc;
+    color: #777777;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.timeButton:disabled {
+    pointer-events: none;
+}
