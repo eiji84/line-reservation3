@@ -185,8 +185,10 @@ async function reserveButtonClicked() {
     }
 
     const reserveButton = document.getElementById("reserveButton");
+    const originalButtonText = reserveButton.textContent;
+
     reserveButton.disabled = true;
-    reserveButton.textContent = "予約しています…";
+    reserveButton.textContent = "予約処理中…";
 
     try {
         const profile = await liff.getProfile();
@@ -206,30 +208,77 @@ async function reserveButtonClicked() {
             body: JSON.stringify(data)
         });
 
+        /*
+         * Makeが500などを返した場合
+         */
         if (!response.ok) {
-            throw new Error("HTTP status: " + response.status);
+            let errorMessage = "予約処理に失敗しました";
+
+            try {
+                const errorResult = await response.json();
+
+                if (errorResult.message) {
+                    errorMessage = errorResult.message;
+                }
+            } catch (_) {
+                // JSONでない場合は既定メッセージを使用
+            }
+
+            throw new Error(errorMessage);
         }
 
+        /*
+         * MakeからのJSONレスポンスを取得
+         */
+        const result = await response.json();
+
+        /*
+         * HTTP 200でも success:false の場合は失敗扱い
+         */
+        if (result.success !== true) {
+            throw new Error(
+                result.message || "予約処理を完了できませんでした"
+            );
+        }
+
+        /*
+         * Makeの全処理成功後にだけ完了表示
+         */
         reserveButton.textContent = "予約完了！";
-        
+
+        /*
+         * LINEアプリ内なら少し待ってLIFFを閉じる
+         */
         if (liff.isInClient()) {
             setTimeout(function () {
                 liff.closeWindow();
             }, 800);
         } else {
+            /*
+             * PCブラウザではcloseWindowが保証されないため、
+             * 予約画面を非表示にして完了画面にする
+             */
             document.getElementById("calendar").style.display = "none";
             document.getElementById("times").style.display = "none";
             reserveButton.style.display = "none";
-        
+
             document.getElementById("name").textContent =
-                "予約を受け付けました。画面を閉じてください。";
+                result.message || "予約が完了しました。";
         }
+
     } catch (error) {
         console.error("Reservation error:", error);
-        alert("送信に失敗しました: " + error.message);
 
+        alert(
+            error.message ||
+            "予約処理に失敗しました。時間をおいて再度お試しください。"
+        );
+
+        /*
+         * エラー時は画面を閉じず、再試行できるように戻す
+         */
         reserveButton.disabled = false;
-        reserveButton.textContent = "予約する";
+        reserveButton.textContent = originalButtonText;
     }
 }
 
