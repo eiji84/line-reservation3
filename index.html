@@ -21,9 +21,24 @@
 
 <div id="name">読み込み中...</div>
 
-<div id="calendar"></div>
+<div class="schedule-header">
+    <button id="prevWeekButton" type="button">‹</button>
+    <div id="scheduleTitle"></div>
+    <button id="nextWeekButton" type="button">›</button>
+</div>
 
-<div id="times"></div>
+<div class="schedule-scroll">
+    <table id="scheduleTable" class="schedule-table">
+        <thead id="scheduleHead"></thead>
+        <tbody id="scheduleBody"></tbody>
+    </table>
+</div>
+
+<div id="selectedReservation" class="selected-reservation"></div>
+
+<button id="reserveButton" type="button">
+    予約する
+</button>
 
 <button id="reserveButton">予約する</button>
 
