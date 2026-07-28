@@ -93,3 +93,144 @@ body {
 .timeButton:disabled {
     pointer-events: none;
 }
+
+.schedule-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.schedule-header button {
+    width: 42px;
+    height: 42px;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.schedule-header button:disabled {
+    opacity: 0.2;
+    cursor: default;
+}
+
+#scheduleTitle {
+    font-size: 17px;
+    font-weight: bold;
+}
+
+.schedule-scroll {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5e5e5;
+    background: white;
+}
+
+.schedule-table {
+    width: 100%;
+    min-width: 650px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.schedule-table th,
+.schedule-table td {
+    height: 48px;
+    padding: 0;
+    border-right: 1px solid #eeeeee;
+    border-bottom: 1px solid #eeeeee;
+    text-align: center;
+}
+
+.schedule-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 58px;
+    background: #ffffff;
+}
+
+.schedule-table .time-header,
+.schedule-table .time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 62px;
+    min-width: 62px;
+    background: #ffffff;
+    font-size: 12px;
+}
+
+.schedule-table .time-header {
+    z-index: 4;
+}
+
+.day-number {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.weekday {
+    margin-top: 2px;
+    font-size: 11px;
+}
+
+.sunday {
+    color: #d66b78;
+}
+
+.saturday {
+    color: #5d9aad;
+}
+
+.today {
+    background: #fffbea !important;
+}
+
+.availability-button {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    font-size: 21px;
+    cursor: pointer;
+}
+
+.availability-button.available {
+    color: #cf8d99;
+}
+
+.availability-button.unavailable {
+    color: #bcbcbc;
+    cursor: default;
+}
+
+.availability-button.selected {
+    color: white;
+    background: #c58b97;
+    font-weight: bold;
+}
+
+.loading-cell {
+    height: 140px !important;
+    color: #777777;
+}
+
+.selected-reservation {
+    min-height: 24px;
+    margin-top: 14px;
+    text-align: center;
+    font-weight: bold;
+}
+
+#reserveButton {
+    display: block;
+    width: calc(100% - 24px);
+    max-width: 420px;
+    margin: 15px auto;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+}
