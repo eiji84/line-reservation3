@@ -439,14 +439,14 @@ async function reserveButtonClicked() {
              * PCブラウザではcloseWindowが保証されないため、
              * 予約画面を非表示にして完了画面にする
              */
-            document.getElementById("calendar").style.display = "none";
-            document.getElementById("times").style.display = "none";
-            reserveButton.style.display = "none";
-
-            document.getElementById("name").textContent =
-                result.message || "予約が完了しました。";
+            document.querySelector(".schedule-header").style.display = "none";
+                document.querySelector(".schedule-scroll").style.display = "none";
+                document.getElementById("selectedReservation").style.display = "none";
+                reserveButton.style.display = "none";
+            
+                document.getElementById("name").textContent =
+                    result.message || "予約が完了しました。";
         }
-
     } catch (error) {
         console.error("Reservation error:", error);
 
