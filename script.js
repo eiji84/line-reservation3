@@ -224,53 +224,108 @@ async function createScheduleTable() {
 }
 
 async function loadAvailabilityForDates(dates) {
+    /*
+     * 戻り値の初期値を作成
+     *
+     * API取得失敗時に予約可能扱いにすると、
+     * 二重予約につながる可能性があるため、
+     * 初期状態では全時間を予約不可にする
+     */
     const resultMap = {};
 
-    await Promise.all(
-        dates.map(async function (date) {
-            const dateString = formatDateForApi(date);
+    dates.forEach(function (date) {
+        const dateString = formatDateForApi(date);
 
-            try {
-                const response = await fetch(
-                    AVAILABILITY_API
-                    + "?date="
-                    + encodeURIComponent(dateString)
-                );
+        resultMap[dateString] = [
+            ...AVAILABLE_TIMES
+        ];
+    });
 
-                if (!response.ok) {
-                    throw new Error(
-                        "HTTP status: " + response.status
-                    );
-                }
+    if (!dates || dates.length === 0) {
+        return resultMap;
+    }
 
-                const result = await response.json();
+    const startDate =
+        formatDateForApi(dates[0]);
 
-                if (!result.success) {
-                    throw new Error(
-                        result.message
-                        || "空き状況を取得できませんでした"
-                    );
-                }
+    const numberOfDays = dates.length;
 
-                resultMap[dateString] =
-                    result.reservedTimes || [];
+    const requestUrl =
+        AVAILABILITY_API
+        + "?start="
+        + encodeURIComponent(startDate)
+        + "&days="
+        + encodeURIComponent(numberOfDays);
 
-            } catch (error) {
-                console.error(
-                    "Availability error:",
-                    dateString,
-                    error
-                );
+    try {
+        console.log(
+            "Availability request:",
+            requestUrl
+        );
 
-                /*
-                 * 取得に失敗した日は、安全のため全枠を予約不可にする
-                 */
-                resultMap[dateString] = [...AVAILABLE_TIMES];
-            }
-        })
-    );
+        const response = await fetch(requestUrl, {
+            method: "GET",
+            cache: "no-store"
+        });
 
-    return resultMap;
+        if (!response.ok) {
+            throw new Error(
+                "HTTP status: " + response.status
+            );
+        }
+
+        const result = await response.json();
+
+        console.log(
+            "Availability response:",
+            result
+        );
+
+        if (result.success !== true) {
+            throw new Error(
+                result.message
+                || "空き状況を取得できませんでした"
+            );
+        }
+
+        if (
+            !result.availability
+            || typeof result.availability !== "object"
+        ) {
+            throw new Error(
+                "空き状況データの形式が正しくありません"
+            );
+        }
+
+        /*
+         * APIから返された空き状況をコピー
+         */
+        dates.forEach(function (date) {
+            const dateString =
+                formatDateForApi(date);
+
+            const reservedTimes =
+                result.availability[dateString];
+
+            resultMap[dateString] =
+                Array.isArray(reservedTimes)
+                    ? reservedTimes
+                    : [];
+        });
+
+        return resultMap;
+
+    } catch (error) {
+        console.error(
+            "Availability error:",
+            error
+        );
+
+        /*
+         * 取得失敗時は安全のため全枠を予約不可にする
+         */
+        return resultMap;
+    }
 }
 
 function selectReservation(date, time, button) {
