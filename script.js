@@ -21,8 +21,9 @@ async function main() {
         document.getElementById("name").textContent =
             "こんにちは " + profile.displayName + " さん";
 
-        createCalendar();
-
+        initializeScheduleNavigation();
+        await createScheduleTable();
+        
         document.getElementById("reserveButton").onclick =
             reserveButtonClicked;
 
@@ -36,141 +37,323 @@ async function main() {
     }
 }
 
-function createCalendar() {
-    const calendarEl = document.getElementById("calendar");
+const DISPLAY_DAYS = 7;
 
-    if (!calendarEl) {
-        console.error("calendar element was not found");
-        return;
-    }
+const AVAILABLE_TIMES = [
+    "10:00",
+    "10:30",
+    "11:00",
+    "13:00",
+    "13:30",
+    "14:00",
+    "14:30",
+    "15:00",
+    "15:30",
+    "16:00",
+    "16:30"
+];
 
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: "dayGridMonth",
-        locale: "ja",
-        height: "auto",
+let currentStartDate = startOfToday();
+let selectedDate = "";
+let selectedTime = "";
 
-        headerToolbar: {
-            left: "prev",
-            center: "title",
-            right: "next"
-        },
-
-        dateClick: async function (info) {
-            selectedDate = info.dateStr;
-            selectedTime = "";
-        
-            document
-                .querySelectorAll(".fc-day-selected")
-                .forEach(function (element) {
-                    element.classList.remove("fc-day-selected");
-                });
-        
-            info.dayEl.classList.add("fc-day-selected");
-        
-            await showTimes(info.dateStr);
-        }
-    });
-
-    calendar.render();
+function startOfToday() {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
 }
 
-async function showTimes(date) {
-    const div = document.getElementById("times");
+function addDays(date, numberOfDays) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + numberOfDays);
+    return result;
+}
 
-    div.innerHTML = "空き状況を確認しています…";
+function formatDateForApi(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
 
-    const times = [
-        "10:00",
-        "10:30",
-        "11:00",
-        "13:00",
-        "13:30",
-        "14:00",
-        "14:30",
-        "15:00",
-        "15:30",
-        "16:00",
-        "16:30"
-    ];
+    return `${year}-${month}-${day}`;
+}
 
-    try {
-        const url =
-            AVAILABILITY_API
-            + "?date="
-            + encodeURIComponent(date);
+function formatDayLabel(date) {
+    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
 
-        const response = await fetch(url);
+    return {
+        day: date.getDate(),
+        weekday: weekdays[date.getDay()]
+    };
+}
 
-        if (!response.ok) {
-            throw new Error("HTTP status: " + response.status);
+function isSameDate(date1, date2) {
+    return (
+        date1.getFullYear() === date2.getFullYear()
+        && date1.getMonth() === date2.getMonth()
+        && date1.getDate() === date2.getDate()
+    );
+}
+
+function isPastDate(date) {
+    const today = startOfToday();
+
+    return date < today;
+}
+
+function isPastDateTime(date, time) {
+    const [hours, minutes] = time.split(":").map(Number);
+
+    const target = new Date(date);
+    target.setHours(hours, minutes, 0, 0);
+
+    return target <= new Date();
+}
+
+async function createScheduleTable() {
+    const head = document.getElementById("scheduleHead");
+    const body = document.getElementById("scheduleBody");
+    const title = document.getElementById("scheduleTitle");
+
+    head.innerHTML = "";
+    body.innerHTML = "";
+
+    const endDate = addDays(currentStartDate, DISPLAY_DAYS - 1);
+
+    title.textContent =
+        `${currentStartDate.getMonth() + 1}月`
+        + ` ${currentStartDate.getDate()}日`
+        + `〜${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+
+    const dates = [];
+
+    for (let i = 0; i < DISPLAY_DAYS; i++) {
+        dates.push(addDays(currentStartDate, i));
+    }
+
+    const headerRow = document.createElement("tr");
+
+    const timeHeader = document.createElement("th");
+    timeHeader.className = "time-header";
+    timeHeader.textContent = "";
+    headerRow.appendChild(timeHeader);
+
+    dates.forEach(function (date) {
+        const label = formatDayLabel(date);
+        const th = document.createElement("th");
+
+        th.innerHTML = `
+            <div class="day-number">${label.day}</div>
+            <div class="weekday">${label.weekday}</div>
+        `;
+
+        if (date.getDay() === 0) {
+            th.classList.add("sunday");
         }
 
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.message || "空き状況を取得できませんでした");
+        if (date.getDay() === 6) {
+            th.classList.add("saturday");
         }
 
-        const reservedTimes = result.reservedTimes || [];
+        if (isSameDate(date, new Date())) {
+            th.classList.add("today");
+        }
 
-        div.innerHTML = "";
+        headerRow.appendChild(th);
+    });
 
-        times.forEach(function (time) {
+    head.appendChild(headerRow);
+
+    body.innerHTML = `
+        <tr>
+            <td colspan="${DISPLAY_DAYS + 1}" class="loading-cell">
+                空き状況を確認しています…
+            </td>
+        </tr>
+    `;
+
+    const availabilityMap = await loadAvailabilityForDates(dates);
+
+    body.innerHTML = "";
+
+    AVAILABLE_TIMES.forEach(function (time) {
+        const row = document.createElement("tr");
+
+        const timeCell = document.createElement("th");
+        timeCell.className = "time-cell";
+        timeCell.textContent = time;
+        row.appendChild(timeCell);
+
+        dates.forEach(function (date) {
+            const dateString = formatDateForApi(date);
+            const reservedTimes = availabilityMap[dateString] || [];
+
+            const cell = document.createElement("td");
             const button = document.createElement("button");
 
-            button.className = "timeButton";
+            button.type = "button";
+            button.className = "availability-button";
 
-            if (reservedTimes.includes(time)) {
-                button.textContent = time + " 予約済み";
+            const unavailable =
+                isPastDate(date)
+                || isPastDateTime(date, time)
+                || reservedTimes.includes(time);
+
+            if (unavailable) {
+                button.textContent = "×";
                 button.disabled = true;
-                button.classList.add("reserved");
+                button.classList.add("unavailable");
             } else {
-                button.textContent = time;
+                button.textContent = "○";
+                button.classList.add("available");
 
                 button.onclick = function () {
-                    selectedTime = time;
-
-                    document
-                        .querySelectorAll(".timeButton")
-                        .forEach(function (element) {
-                            element.classList.remove("selected");
-                        });
-
-                    button.classList.add("selected");
+                    selectReservation(
+                        dateString,
+                        time,
+                        button
+                    );
                 };
             }
 
-            div.appendChild(button);
+            cell.appendChild(button);
+            row.appendChild(cell);
         });
 
-    } catch (error) {
-        console.error("Availability error:", error);
+        body.appendChild(row);
+    });
 
-        div.innerHTML = "";
+    updatePreviousButton();
+}
 
-        times.forEach(function (time) {
-            const button = document.createElement("button");
+async function loadAvailabilityForDates(dates) {
+    const resultMap = {};
 
-            button.className = "timeButton";
-            button.textContent = time;
+    await Promise.all(
+        dates.map(async function (date) {
+            const dateString = formatDateForApi(date);
 
-            button.onclick = function () {
-                selectedTime = time;
+            try {
+                const response = await fetch(
+                    AVAILABILITY_API
+                    + "?date="
+                    + encodeURIComponent(dateString)
+                );
 
-                document
-                    .querySelectorAll(".timeButton")
-                    .forEach(function (element) {
-                        element.classList.remove("selected");
-                    });
+                if (!response.ok) {
+                    throw new Error(
+                        "HTTP status: " + response.status
+                    );
+                }
 
-                button.classList.add("selected");
-            };
+                const result = await response.json();
 
-            div.appendChild(button);
+                if (!result.success) {
+                    throw new Error(
+                        result.message
+                        || "空き状況を取得できませんでした"
+                    );
+                }
+
+                resultMap[dateString] =
+                    result.reservedTimes || [];
+
+            } catch (error) {
+                console.error(
+                    "Availability error:",
+                    dateString,
+                    error
+                );
+
+                /*
+                 * 取得に失敗した日は、安全のため全枠を予約不可にする
+                 */
+                resultMap[dateString] = [...AVAILABLE_TIMES];
+            }
+        })
+    );
+
+    return resultMap;
+}
+
+function selectReservation(date, time, button) {
+    selectedDate = date;
+    selectedTime = time;
+
+    document
+        .querySelectorAll(".availability-button.selected")
+        .forEach(function (element) {
+            element.classList.remove("selected");
         });
 
-        alert("空き状況を取得できませんでした");
-    }
+    button.classList.add("selected");
+
+    const selectedText =
+        document.getElementById("selectedReservation");
+
+    selectedText.textContent =
+        `${formatJapaneseDate(date)} ${time}を選択中`;
+}
+
+function formatJapaneseDate(dateString) {
+    const [year, month, day] =
+        dateString.split("-").map(Number);
+
+    const date = new Date(year, month - 1, day);
+
+    const weekdays =
+        ["日", "月", "火", "水", "木", "金", "土"];
+
+    return (
+        `${month}月${day}日`
+        + `（${weekdays[date.getDay()]}）`
+    );
+}
+
+function updatePreviousButton() {
+    const previousButton =
+        document.getElementById("prevWeekButton");
+
+    previousButton.disabled =
+        currentStartDate <= startOfToday();
+}
+
+function initializeScheduleNavigation() {
+    document
+        .getElementById("prevWeekButton")
+        .addEventListener("click", async function () {
+            const previousStart =
+                addDays(currentStartDate, -DISPLAY_DAYS);
+
+            /*
+             * 過去へ移動しすぎない
+             */
+            currentStartDate =
+                previousStart < startOfToday()
+                    ? startOfToday()
+                    : previousStart;
+
+            clearSelection();
+            await createScheduleTable();
+        });
+
+    document
+        .getElementById("nextWeekButton")
+        .addEventListener("click", async function () {
+            currentStartDate =
+                addDays(currentStartDate, DISPLAY_DAYS);
+
+            clearSelection();
+            await createScheduleTable();
+        });
+}
+
+function clearSelection() {
+    selectedDate = "";
+    selectedTime = "";
+
+    document.getElementById(
+        "selectedReservation"
+    ).textContent = "";
 }
 
 async function reserveButtonClicked() {
