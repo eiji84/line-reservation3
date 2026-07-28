@@ -54,8 +54,6 @@ const AVAILABLE_TIMES = [
 ];
 
 let currentStartDate = startOfToday();
-let selectedDate = "";
-let selectedTime = "";
 
 function startOfToday() {
     const date = new Date();
